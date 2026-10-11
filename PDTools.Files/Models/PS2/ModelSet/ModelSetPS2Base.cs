@@ -84,13 +84,20 @@ public abstract class ModelSetPS2Base
                         extractor.CurrentCallback = 0;
                         ProcessCommands(extractor, callbackCmd.Default);
 
-                        extractor.CallbackBranchIndex = 0;
-                        extractor.ExtraShapeName = "tail_lamp_off";
-                        ProcessCommands(extractor, callbackCmd.CommandsPerBranch[0]);
+                        if (callbackCmd.CommandsPerBranch.Count < 2)
+                            Console.WriteLine($"Tail-lamp callback has {callbackCmd.CommandsPerBranch.Count} branches; exporting only present branches.");
 
-                        extractor.CallbackBranchIndex = 1;
-                        extractor.ExtraShapeName = "tail_lamp_on";
-                        ProcessCommands(extractor, callbackCmd.CommandsPerBranch[1]);
+                        for (int branch = 0; branch < callbackCmd.CommandsPerBranch.Count; branch++)
+                        {
+                            extractor.CallbackBranchIndex = branch;
+                            extractor.ExtraShapeName = branch switch
+                            {
+                                0 => "tail_lamp_off",
+                                1 => "tail_lamp_on",
+                                _ => $"tail_lamp_branch{branch}",
+                            };
+                            ProcessCommands(extractor, callbackCmd.CommandsPerBranch[branch]);
+                        }
                     }
 
                     extractor.ExtraShapeName = null;
@@ -103,6 +110,7 @@ public abstract class ModelSetPS2Base
                     break;
 
                 case ModelSetupPS2Opcode.pgluCallShape_Byte:
+                case ModelSetupPS2Opcode.pgluCallShape_UShort:
                     {
                         if (extractor.CurrentLOD == -1)
                         {
@@ -114,8 +122,9 @@ public abstract class ModelSetPS2Base
                         }
 
 
-                        var callShape = (command as Cmd_pgluCallShapeByte);
-                        int shapeIndex = callShape.ShapeIndex;
+                        int shapeIndex = command is Cmd_pgluCallShapeByte byteCall
+                            ? byteCall.ShapeIndex
+                            : ((Cmd_pgluCallShape_UShort)command).ShapeIndex;
                         PGLUshapeConverted shapeData = Shapes[shapeIndex].GetShapeData();
                         shapeData.ShapeIndex = shapeIndex;
                         shapeData.RenderCommands = extractor.RenderCommandContext.GetCurrentCommandsForContext();
