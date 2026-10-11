@@ -796,20 +796,8 @@ public class Table
     public void CreateDebugPrinter(string path)
     {
 #if DEBUG
-        if (_debugWriter != null)
-        {
-            _debugWriter.BaseStream.Dispose();
-            _debugWriter?.Dispose();
-        }
-
-        try
-        {
-            _debugWriter = new StreamWriter(path);
-        }
-        catch (Exception e)
-        {
-            // Already in use?
-        }
+        _debugWriter?.Dispose();
+        _debugWriter = new StreamWriter(path);
 #endif
     }
 

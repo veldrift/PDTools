@@ -292,7 +292,7 @@ public class DBT_DatabaseTable
     private void DebugPrint(string message)
     {
 #if DEBUG
-        _debugWriter.WriteLine(message);
+        _debugWriter?.WriteLine(message);
 #endif
     }
 

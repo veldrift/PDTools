@@ -25,6 +25,9 @@ public class SpecDB : IDisposable
     public string SpecDBName { get; set; }
     public int Version { get; set; }
 
+    /// <summary>Optional diagnostic folder for Debug builds, separate from original game data.</summary>
+    public string DebugOutputDirectory { get; private set; }
+
     /// <summary>
     /// Tables for this spec db.
     /// </summary>
@@ -85,10 +88,6 @@ public class SpecDB : IDisposable
                 Fixed_Tables[i] = new Table(TABLE_NAMES[i]);
         }
 
-#if DEBUG
-        // Will be used for debug printer
-        Directory.CreateDirectory(Path.Combine(folderName, "debug"));
-#endif
     }
 
     public static SpecDBFolder? DetectSpecDBType(string folderName)
@@ -99,12 +98,18 @@ public class SpecDB : IDisposable
         return null;
     }
 
-    public static SpecDB LoadFromSpecDBFolder(string folderName, SpecDBFolder specDbType, bool loadAsOriginalImplementation)
+    public static SpecDB LoadFromSpecDBFolder(string folderName, SpecDBFolder specDbType, bool loadAsOriginalImplementation,
+        string debugOutputDirectory = null)
     {
         if (!Directory.Exists(folderName))
             throw new DirectoryNotFoundException("SpecDB directory is not found.");
 
         SpecDB db = new SpecDB(folderName, specDbType, loadAsOriginalImplementation);
+        db.DebugOutputDirectory = debugOutputDirectory;
+#if DEBUG
+        if (debugOutputDirectory is not null)
+            Directory.CreateDirectory(debugOutputDirectory);
+#endif
         if (db.LoadingAsOriginalImplementation)
         {
             db.ReadAllTables();
@@ -150,7 +155,7 @@ public class SpecDB : IDisposable
         {
             Fixed_Tables[i].AddressInitialize(this);
             Fixed_Tables[i].ReadIDIMapOffsets(this);
-            Fixed_Tables[i].CreateDebugPrinter(Path.Combine(FolderName, "debug", $"{Fixed_Tables[i].TableName}.txt"));
+            ConfigureDebugPrinter(Fixed_Tables[i]);
         }
     }
 
@@ -378,10 +383,18 @@ public class SpecDB : IDisposable
             var specdbTable = new Table(tableName);
             specdbTable.AddressInitialize(this);
             specdbTable.ReadIDIMapOffsets(this);
-            specdbTable.CreateDebugPrinter(Path.Combine(FolderName, "debug", $"{tableName}.txt"));
+            ConfigureDebugPrinter(specdbTable);
 
             Tables.Add(specdbTable.TableName, specdbTable);
         }
+    }
+
+    private void ConfigureDebugPrinter(Table table)
+    {
+#if DEBUG
+        if (DebugOutputDirectory is not null)
+            table.CreateDebugPrinter(Path.Combine(DebugOutputDirectory, $"{table.TableName}.txt"));
+#endif
     }
 
     public void SavePartsInfoFile(IProgress<(int, string)> progress, bool tbdFile, string folder)
